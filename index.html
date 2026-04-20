@@ -1,0 +1,1763 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dacha Homestyle Cafe — Taste of Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Pro:wght@400;600&display=swap" rel="stylesheet">
+    
+    <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --cream: #F5F1E8;
+            --warm-white: #FEFDFB;
+            --dark-brown: #4A3F35;
+            --medium-brown: #6B5D52;
+            --terracotta: oklch(0.62 0.12 35);
+            --sage-green: oklch(0.68 0.08 140);
+            --light-terracotta: oklch(0.88 0.05 35);
+            --light-sage: oklch(0.92 0.03 140);
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--warm-white);
+            color: var(--dark-brown);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        #root {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+
+const { useState, useEffect, useRef } = React;
+
+// ============ TWEAKS CONFIGURATION ============
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "heroStyle": "fullBleed",
+  "accentColor": "terracotta",
+  "navStyle": "floating",
+  "showPatterns": true
+} /*EDITMODE-END*/;
+
+// ============ MAIN APP ============
+function DachaLanding() {
+  const [tweaks, setTweaks] = useState(TWEAK_DEFAULTS);
+  const [tweaksVisible, setTweaksVisible] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState('hero');
+
+  useEffect(() => {
+    // Listen for tweak mode messages
+    const handleMessage = (e) => {
+      if (e.data.type === '__activate_edit_mode') {
+        setTweaksVisible(true);
+      } else if (e.data.type === '__deactivate_edit_mode') {
+        setTweaksVisible(false);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+
+    // Scroll handler
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+
+      // Update active section
+      const sections = ['hero', 'about', 'menu', 'gallery', 'testimonials', 'catering', 'contact'];
+      for (const section of sections) {
+        const el = document.getElementById(section);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= 100 && rect.bottom >= 100) {
+            setActiveSection(section);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  const updateTweak = (key, value) => {
+    const newTweaks = { ...tweaks, [key]: value };
+    setTweaks(newTweaks);
+    window.parent.postMessage({
+      type: '__edit_mode_set_keys',
+      edits: newTweaks
+    }, '*');
+  };
+
+  const scrollToSection = (id) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  return (
+    <>
+                    <Navigation
+        scrolled={scrolled}
+        activeSection={activeSection}
+        scrollToSection={scrollToSection}
+        navStyle={tweaks.navStyle} />
+      
+                    
+                    <HeroSection
+        heroStyle={tweaks.heroStyle}
+        accentColor={tweaks.accentColor}
+        showPatterns={tweaks.showPatterns} />
+      
+                    
+                    <AboutSection accentColor={tweaks.accentColor} />
+                    
+                    <MenuSection accentColor={tweaks.accentColor} />
+                    
+                    <GallerySection />
+                    
+                    <TestimonialsSection accentColor={tweaks.accentColor} />
+                    
+                    <CateringSection accentColor={tweaks.accentColor} showPatterns={tweaks.showPatterns} />
+                    
+                    <ContactSection accentColor={tweaks.accentColor} />
+                    
+                    <Footer />
+                    
+                    {tweaksVisible &&
+      <TweaksPanel
+        tweaks={tweaks}
+        updateTweak={updateTweak}
+        onClose={() => setTweaksVisible(false)} />
+
+      }
+                </>);
+
+}
+
+// ============ NAVIGATION ============
+function Navigation({ scrolled, activeSection, scrollToSection, navStyle }) {
+  const navLinks = [
+  { id: 'hero', label: 'Home' },
+  { id: 'about', label: 'About' },
+  { id: 'menu', label: 'Menu' },
+  { id: 'gallery', label: 'Gallery' },
+  { id: 'catering', label: 'Catering' },
+  { id: 'contact', label: 'Contact' }];
+
+
+  const navStyles = {
+    position: 'fixed',
+    top: navStyle === 'floating' ? scrolled ? '20px' : '30px' : 0,
+    left: navStyle === 'floating' ? '50%' : 0,
+    transform: navStyle === 'floating' ? 'translateX(-50%)' : 'none',
+    width: navStyle === 'floating' ? 'auto' : '100%',
+    background: scrolled || navStyle === 'fullWidth' ? 'rgba(255, 253, 251, 0.95)' : 'transparent',
+    backdropFilter: scrolled || navStyle === 'fullWidth' ? 'blur(10px)' : 'none',
+    padding: navStyle === 'floating' ? '16px 40px' : '20px 60px',
+    borderRadius: navStyle === 'floating' ? '50px' : 0,
+    boxShadow: scrolled || navStyle === 'fullWidth' ? '0 4px 20px rgba(0,0,0,0.08)' : 'none',
+    zIndex: 1000,
+    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '40px'
+  };
+
+  return (
+    <nav style={navStyles}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => scrollToSection('hero')}>
+                        <img src="assets/dacha-logo-new.png" alt="Dacha" style={{ transition: 'height 0.3s', width: "60px", height: "60px" }} />
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
+                        {navLinks.map((link) =>
+        <a
+          key={link.id}
+          onClick={(e) => {e.preventDefault();scrollToSection(link.id);}}
+          style={{
+            color: activeSection === link.id ? 'var(--terracotta)' : 'var(--medium-brown)',
+            textDecoration: 'none',
+            fontSize: '15px',
+            fontWeight: activeSection === link.id ? 600 : 400,
+            cursor: 'pointer',
+            transition: 'all 0.3s',
+            position: 'relative',
+            padding: '8px 0'
+          }}
+          onMouseEnter={(e) => e.target.style.color = 'var(--terracotta)'}
+          onMouseLeave={(e) => e.target.style.color = activeSection === link.id ? 'var(--terracotta)' : 'var(--medium-brown)'}>
+          
+                                {link.label}
+                            </a>
+        )}
+                    </div>
+                </nav>);
+
+}
+
+// ============ HERO SECTION ============
+function HeroSection({ heroStyle, accentColor, showPatterns }) {
+  const getAccentVar = () => {
+    return accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
+  };
+
+  const getLightAccentVar = () => {
+    return accentColor === 'terracotta' ? 'var(--light-terracotta)' : 'var(--light-sage)';
+  };
+
+  if (heroStyle === 'fullBleed') {
+    return (
+      <section id="hero" style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: `linear-gradient(135deg, ${getLightAccentVar()} 0%, var(--cream) 100%)`,
+        position: 'relative',
+        overflow: 'hidden',
+        paddingTop: '100px'
+      }}>
+                        {showPatterns &&
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          opacity: 0.05,
+          backgroundImage: `radial-gradient(circle at 20% 30%, ${getAccentVar()} 1px, transparent 1px),
+                                                  radial-gradient(circle at 80% 70%, ${getAccentVar()} 1px, transparent 1px)`,
+          backgroundSize: '50px 50px'
+        }} />
+        }
+                        
+                        <div style={{
+          maxWidth: '1400px',
+          width: '100%',
+          padding: '0 60px',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '80px',
+          alignItems: 'center',
+          position: 'relative',
+          zIndex: 1
+        }}>
+                            <div style={{ animation: 'fadeInUp 1s ease-out' }}>
+                                <div style={{
+              fontSize: '16px',
+              letterSpacing: '3px',
+              textTransform: 'uppercase',
+              color: getAccentVar(),
+              fontWeight: 600,
+              marginBottom: '24px'
+            }}>
+                                    Homestyle Cafe
+                                </div>
+                                
+                                <h1 style={{
+              fontSize: '72px',
+              fontWeight: 700,
+              lineHeight: 1.1,
+              marginBottom: '32px',
+              color: 'var(--dark-brown)',
+              letterSpacing: '-1px'
+            }}>
+                                    Taste of<br />homestyle<br />comfort
+                                </h1>
+                                
+                                <p style={{
+              fontSize: '20px',
+              lineHeight: 1.8,
+              color: 'var(--medium-brown)',
+              marginBottom: '48px',
+              maxWidth: '500px'
+            }}>
+                                    Authentic homestyle cuisine with a modern interpretation of traditional recipes. Each dish is prepared with soul and love.
+                                </p>
+                                
+                                <div style={{ display: 'flex', gap: '20px' }}>
+                                    <button style={{
+                background: getAccentVar(),
+                color: 'white',
+                border: 'none',
+                padding: '18px 40px',
+                fontSize: '16px',
+                fontWeight: 600,
+                borderRadius: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.3s',
+                boxShadow: `0 8px 24px ${getAccentVar()}40`
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = `0 12px 32px ${getAccentVar()}50`;
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = `0 8px 24px ${getAccentVar()}40`;
+              }}>
+                                        View Menu
+                                    </button>
+                                    
+                                    <button style={{
+                background: 'transparent',
+                color: 'var(--dark-brown)',
+                border: '2px solid var(--dark-brown)',
+                padding: '18px 40px',
+                fontSize: '16px',
+                fontWeight: 600,
+                borderRadius: '12px',
+                cursor: 'pointer',
+                transition: 'all 0.3s'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'var(--dark-brown)';
+                e.target.style.color = 'white';
+                e.target.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'transparent';
+                e.target.style.color = 'var(--dark-brown)';
+                e.target.style.transform = 'translateY(0)';
+              }}>
+                                        About Us
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div style={{
+            borderRadius: '24px',
+            height: '600px',
+            overflow: 'hidden',
+            animation: 'fadeInUp 1s ease-out 0.2s both',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.15)'
+          }}>
+                                <img
+              src="assets/hero-interior.jpg"
+              alt="Dacha Cafe Interior"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                transition: 'transform 0.6s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+              onMouseLeave={(e) => e.target.style.transform = 'scale(1)'} />
+            
+                            </div>
+                        </div>
+                    </section>);
+
+  } else if (heroStyle === 'centered') {
+    return (
+      <section id="hero" style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: `linear-gradient(to bottom, ${getLightAccentVar()}, var(--warm-white))`,
+        position: 'relative',
+        paddingTop: '100px',
+        textAlign: 'center'
+      }}>
+                        <div style={{
+          maxWidth: '900px',
+          padding: '0 60px',
+          animation: 'fadeInUp 1s ease-out'
+        }}>
+                            <img src="assets/dacha-logo-new.png" alt="Dacha" style={{
+            height: '120px',
+            marginBottom: '40px',
+            filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.1))'
+          }} />
+                            
+                            <h1 style={{
+            fontSize: '84px',
+            fontWeight: 700,
+            lineHeight: 1.1,
+            marginBottom: '32px',
+            color: 'var(--dark-brown)',
+            letterSpacing: '-2px'
+          }}>
+                                Homestyle cuisine<br />with soul
+                            </h1>
+                            
+                            <p style={{
+            fontSize: '22px',
+            lineHeight: 1.8,
+            color: 'var(--medium-brown)',
+            marginBottom: '48px',
+            maxWidth: '700px',
+            margin: '0 auto 48px'
+          }}>
+                                Authentic recipes, modern presentation, warm atmosphere
+                            </p>
+                            
+                            <button style={{
+            background: getAccentVar(),
+            color: 'white',
+            border: 'none',
+            padding: '20px 48px',
+            fontSize: '18px',
+            fontWeight: 600,
+            borderRadius: '12px',
+            cursor: 'pointer',
+            transition: 'all 0.3s',
+            boxShadow: `0 8px 24px ${getAccentVar()}40`
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'translateY(-2px)';
+            e.target.style.boxShadow = `0 12px 32px ${getAccentVar()}50`;
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'translateY(0)';
+            e.target.style.boxShadow = `0 8px 24px ${getAccentVar()}40`;
+          }}>
+                                View Menu
+                            </button>
+                        </div>
+                    </section>);
+
+  } else {
+    // Minimal style
+    return (
+      <section id="hero" style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--warm-white)',
+        position: 'relative',
+        paddingTop: '100px'
+      }}>
+                        <div style={{
+          maxWidth: '1200px',
+          width: '100%',
+          padding: '0 60px',
+          animation: 'fadeInUp 1s ease-out'
+        }}>
+                            <h1 style={{
+            fontSize: '120px',
+            fontWeight: 300,
+            lineHeight: 1.1,
+            marginBottom: '40px',
+            color: 'var(--dark-brown)',
+            letterSpacing: '-3px'
+          }}>
+                                Dacha
+                            </h1>
+                            
+                            <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '60px',
+            alignItems: 'center'
+          }}>
+                                <div>
+                                    <p style={{
+                fontSize: '24px',
+                lineHeight: 1.7,
+                color: 'var(--medium-brown)',
+                marginBottom: '32px'
+              }}>
+                                        Homestyle Cafe<br />
+                                        Taste of home comfort
+                                    </p>
+                                    
+                                    <button style={{
+                background: 'var(--dark-brown)',
+                color: 'white',
+                border: 'none',
+                padding: '16px 32px',
+                fontSize: '16px',
+                fontWeight: 500,
+                borderRadius: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.3s'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = getAccentVar();
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'var(--dark-brown)';
+              }}>
+                                        Menu →
+                                    </button>
+                                </div>
+                                
+                                <div style={{
+              background: `repeating-linear-gradient(0deg, var(--cream), var(--cream) 2px, transparent 2px, transparent 4px)`,
+              borderRadius: '16px',
+              height: '400px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: 'monospace',
+              color: 'var(--medium-brown)',
+              fontSize: '16px'
+            }}>
+                                    [ Image placeholder ]
+                                </div>
+                            </div>
+                        </div>
+                    </section>);
+
+  }
+}
+
+// ============ ABOUT SECTION ============
+function AboutSection({ accentColor }) {
+  const getAccentVar = () => accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
+
+  return (
+    <section id="about" style={{
+      padding: '140px 60px',
+      background: 'var(--cream)',
+      position: 'relative'
+    }}>
+                    <div style={{
+        maxWidth: '1400px',
+        margin: '0 auto',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '100px',
+        alignItems: 'center'
+      }}>
+                        <div style={{
+          background: `repeating-linear-gradient(-45deg, var(--warm-white), var(--warm-white) 2px, ${getAccentVar()}10 2px, ${getAccentVar()}10 4px)`,
+          borderRadius: '24px',
+          height: '500px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'monospace',
+          color: 'var(--medium-brown)',
+          fontSize: '16px',
+          textAlign: 'center',
+          padding: '40px',
+          border: `3px solid ${getAccentVar()}20`
+        }}>
+                            [ Cafe interior photo<br />
+                            or team photo<br />
+                            500×500px ]
+                        </div>
+                        
+                        <div>
+                            <div style={{
+            fontSize: '14px',
+            letterSpacing: '2px',
+            textTransform: 'uppercase',
+            color: getAccentVar(),
+            fontWeight: 600,
+            marginBottom: '20px'
+          }}>
+                                About Us
+                            </div>
+                            
+                            <h2 style={{
+            fontSize: '52px',
+            fontWeight: 700,
+            lineHeight: 1.2,
+            marginBottom: '32px',
+            color: 'var(--dark-brown)',
+            letterSpacing: '-1px'
+          }}>
+                                Our Story
+                            </h2>
+                            
+                            <p style={{
+            fontSize: '18px',
+            lineHeight: 1.8,
+            color: 'var(--medium-brown)',
+            marginBottom: '24px'
+          }}>
+                                Dacha Homestyle Cafe is a place where traditional recipes meet modern culinary approach. We believe that good food brings people together and creates lasting memories.
+                            </p>
+                            
+                            <p style={{
+            fontSize: '18px',
+            lineHeight: 1.8,
+            color: 'var(--medium-brown)',
+            marginBottom: '32px'
+          }}>
+                                Each dish is prepared with soul, using only fresh ingredients and time-tested recipes. Our mission is to bring our guests the taste of home comfort and warm atmosphere.
+                            </p>
+                            
+                            <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr',
+            gap: '32px',
+            marginTop: '48px'
+          }}>
+                                <div>
+                                    <div style={{
+                fontSize: '40px',
+                fontWeight: 700,
+                color: getAccentVar(),
+                marginBottom: '8px'
+              }}>10+</div>
+                                    <div style={{
+                fontSize: '14px',
+                color: 'var(--medium-brown)',
+                textTransform: 'uppercase',
+                letterSpacing: '1px'
+              }}>Years Experience</div>
+                                </div>
+                                
+                                <div>
+                                    <div style={{
+                fontSize: '40px',
+                fontWeight: 700,
+                color: getAccentVar(),
+                marginBottom: '8px'
+              }}>50+</div>
+                                    <div style={{
+                fontSize: '14px',
+                color: 'var(--medium-brown)',
+                textTransform: 'uppercase',
+                letterSpacing: '1px'
+              }}>Menu Items</div>
+                                </div>
+                                
+                                <div>
+                                    <div style={{
+                fontSize: '40px',
+                fontWeight: 700,
+                color: getAccentVar(),
+                marginBottom: '8px'
+              }}>1000+</div>
+                                    <div style={{
+                fontSize: '14px',
+                color: 'var(--medium-brown)',
+                textTransform: 'uppercase',
+                letterSpacing: '1px'
+              }}>Happy Guests</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>);
+
+}
+
+// ============ MENU SECTION ============
+function MenuSection({ accentColor }) {
+  const getAccentVar = () => accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
+  const [activeMenu, setActiveMenu] = useState('main');
+
+  const menus = [
+  { id: 'main', label: 'Main Menu', pdf: 'assets/menu-main.pdf' },
+  { id: 'breakfast', label: 'Breakfast', pdf: 'assets/menu-breakfast.pdf' },
+  { id: 'drinks', label: 'Drinks', pdf: 'assets/menu-drinks.pdf' }];
+
+
+  return (
+    <section id="menu" style={{
+      padding: '140px 60px',
+      background: 'var(--warm-white)',
+      position: 'relative'
+    }}>
+                    <div style={{
+        maxWidth: '1400px',
+        margin: '0 auto',
+        textAlign: 'center'
+      }}>
+                        <div style={{
+          fontSize: '14px',
+          letterSpacing: '2px',
+          textTransform: 'uppercase',
+          color: getAccentVar(),
+          fontWeight: 600,
+          marginBottom: '20px'
+        }}>
+                            Menu
+                        </div>
+                        
+                        <h2 style={{
+          fontSize: '52px',
+          fontWeight: 700,
+          lineHeight: 1.2,
+          marginBottom: '20px',
+          color: 'var(--dark-brown)',
+          letterSpacing: '-1px'
+        }}>
+                            Our Menu
+                        </h2>
+                        
+                        <p style={{
+          fontSize: '18px',
+          lineHeight: 1.8,
+          color: 'var(--medium-brown)',
+          marginBottom: '48px',
+          maxWidth: '600px',
+          margin: '0 auto 48px'
+        }}>
+                            Browse our full menu selections
+                        </p>
+                        
+                        {/* Menu Tabs */}
+                        <div style={{
+          display: 'flex',
+          gap: '16px',
+          justifyContent: 'center',
+          marginBottom: '48px'
+        }}>
+                            {menus.map((menu) =>
+          <button
+            key={menu.id}
+            onClick={() => setActiveMenu(menu.id)}
+            style={{
+              background: activeMenu === menu.id ? getAccentVar() : 'white',
+              color: activeMenu === menu.id ? 'white' : 'var(--dark-brown)',
+              border: `2px solid ${activeMenu === menu.id ? getAccentVar() : 'var(--cream)'}`,
+              padding: '14px 32px',
+              fontSize: '16px',
+              fontWeight: 600,
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.3s',
+              boxShadow: activeMenu === menu.id ? `0 4px 16px ${getAccentVar()}30` : '0 2px 8px rgba(0,0,0,0.05)'
+            }}
+            onMouseEnter={(e) => {
+              if (activeMenu !== menu.id) {
+                e.target.style.background = 'var(--cream)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeMenu !== menu.id) {
+                e.target.style.background = 'white';
+              }
+            }}>
+            
+                                    {menu.label}
+                                </button>
+          )}
+                        </div>
+                        
+                        {/* PDF Viewer */}
+                        <div style={{
+          background: 'white',
+          borderRadius: '24px',
+          padding: '48px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+          minHeight: '700px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+                            <div style={{
+            width: '100%',
+            maxWidth: '900px',
+            height: '650px',
+            border: `2px solid ${getAccentVar()}15`,
+            borderRadius: '16px',
+            overflow: 'hidden',
+            background: 'var(--cream)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative'
+          }}>
+                                <iframe
+              src={menus.find((m) => m.id === activeMenu)?.pdf}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none'
+              }}
+              title={`${menus.find((m) => m.id === activeMenu)?.label} PDF`} />
+            
+                                
+                                {/* Fallback message */}
+                                <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '24px',
+              pointerEvents: 'none',
+              zIndex: -1
+            }}>
+                                    <div style={{
+                fontSize: '64px'
+              }}>📄</div>
+                                    <div style={{
+                fontSize: '18px',
+                color: 'var(--medium-brown)',
+                textAlign: 'center',
+                maxWidth: '400px'
+              }}>
+                                        Upload your menu PDF files to<br />
+                                        <code style={{
+                  background: 'white',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  fontFamily: 'monospace'
+                }}>assets/menu-{activeMenu}.pdf</code>
+                                    </div>
+                                    <a
+                href={menus.find((m) => m.id === activeMenu)?.pdf}
+                download
+                style={{
+                  background: getAccentVar(),
+                  color: 'white',
+                  textDecoration: 'none',
+                  padding: '12px 24px',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  pointerEvents: 'auto',
+                  transition: 'all 0.3s'
+                }}
+                onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
+                onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}>
+                
+                                        Download PDF
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <p style={{
+            marginTop: '24px',
+            fontSize: '14px',
+            color: 'var(--medium-brown)',
+            fontStyle: 'italic'
+          }}>
+                                Can't see the menu? <a
+              href={menus.find((m) => m.id === activeMenu)?.pdf}
+              download
+              style={{
+                color: getAccentVar(),
+                fontWeight: 600,
+                textDecoration: 'none'
+              }}
+              onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+              onMouseLeave={(e) => e.target.style.textDecoration = 'none'}>
+              
+                                    Download it here
+                                </a>
+                            </p>
+                        </div>
+                    </div>
+                </section>);
+
+}
+
+// ============ GALLERY SECTION ============
+function GallerySection() {
+  return (
+    <section id="gallery" style={{
+      padding: '140px 60px',
+      background: 'var(--cream)'
+    }}>
+                    <div style={{
+        maxWidth: '1400px',
+        margin: '0 auto',
+        textAlign: 'center'
+      }}>
+                        <div style={{
+          fontSize: '14px',
+          letterSpacing: '2px',
+          textTransform: 'uppercase',
+          color: 'var(--terracotta)',
+          fontWeight: 600,
+          marginBottom: '20px'
+        }}>
+                            Gallery
+                        </div>
+                        
+                        <h2 style={{
+          fontSize: '52px',
+          fontWeight: 700,
+          lineHeight: 1.2,
+          marginBottom: '64px',
+          color: 'var(--dark-brown)',
+          letterSpacing: '-1px'
+        }}>
+                            Our Dishes & Atmosphere
+                        </h2>
+                        
+                        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '24px'
+        }}>
+                            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) =>
+          <GalleryItem key={i} index={i} />
+          )}
+                        </div>
+                    </div>
+                </section>);
+
+}
+
+function GalleryItem({ index }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: `repeating-linear-gradient(${45 * index}deg, var(--warm-white), var(--warm-white) 2px, var(--terracotta)08 2px, var(--terracotta)08 4px)`,
+        borderRadius: '16px',
+        height: '280px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'monospace',
+        fontSize: '13px',
+        color: 'var(--medium-brown)',
+        cursor: 'pointer',
+        transition: 'all 0.4s',
+        transform: hovered ? 'scale(1.05)' : 'scale(1)',
+        boxShadow: hovered ? '0 12px 32px rgba(0,0,0,0.15)' : '0 4px 12px rgba(0,0,0,0.08)',
+        border: '2px solid var(--terracotta)15',
+        overflow: 'hidden',
+        position: 'relative'
+      }}>
+      
+                    <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: hovered ? 'rgba(0,0,0,0.3)' : 'transparent',
+        transition: 'background 0.3s',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white',
+        fontSize: '16px',
+        fontWeight: 600,
+        opacity: hovered ? 1 : 0
+      }}>
+                        View
+                    </div>
+                    [ Photo {index} ]
+                </div>);
+
+}
+
+// ============ TESTIMONIALS SECTION ============
+function TestimonialsSection({ accentColor }) {
+  const getAccentVar = () => accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
+
+  const hours = [
+  { day: 'Monday', hours: '11 AM – 8 PM' },
+  { day: 'Tuesday', hours: '11 AM – 8 PM' },
+  { day: 'Wednesday', hours: '11 AM – 8 PM' },
+  { day: 'Thursday', hours: '10 AM – 9 PM' },
+  { day: 'Friday', hours: '10 AM – 9 PM' },
+  { day: 'Saturday', hours: '10 AM – 9 PM' },
+  { day: 'Sunday', hours: '10 AM – 9 PM' }];
+
+
+  return (
+    <section id="testimonials" style={{
+      padding: '140px 60px',
+      background: 'var(--warm-white)'
+    }}>
+                    <div style={{
+        maxWidth: '1400px',
+        margin: '0 auto'
+      }}>
+                        <div style={{
+          textAlign: 'center',
+          marginBottom: '64px'
+        }}>
+                            <div style={{
+            fontSize: '14px',
+            letterSpacing: '2px',
+            textTransform: 'uppercase',
+            color: getAccentVar(),
+            fontWeight: 600,
+            marginBottom: '20px'
+          }}>
+                                Visit Us
+                            </div>
+                            
+                            <h2 style={{
+            fontSize: '52px',
+            fontWeight: 700,
+            lineHeight: 1.2,
+            marginBottom: '20px',
+            color: 'var(--dark-brown)',
+            letterSpacing: '-1px'
+          }}>
+                                Hours & Reviews
+                            </h2>
+                            
+                            <p style={{
+            fontSize: '18px',
+            lineHeight: 1.8,
+            color: 'var(--medium-brown)',
+            maxWidth: '600px',
+            margin: '0 auto'
+          }}>
+                                Come visit us during our opening hours
+                            </p>
+                        </div>
+                        
+                        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '60px',
+          alignItems: 'start'
+        }}>
+                            {/* Hours */}
+                            <div style={{
+            background: 'white',
+            borderRadius: '24px',
+            padding: '48px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
+          }}>
+                                <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              marginBottom: '32px'
+            }}>
+                                    <div style={{
+                fontSize: '32px'
+              }}>🕐</div>
+                                    <h3 style={{
+                fontSize: '28px',
+                fontWeight: 700,
+                color: 'var(--dark-brown)',
+                margin: 0
+              }}>Opening Hours</h3>
+                                </div>
+                                
+                                <div style={{
+              display: 'grid',
+              gap: '16px'
+            }}>
+                                    {hours.map((item, idx) =>
+              <div key={idx} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 0',
+                borderBottom: idx < hours.length - 1 ? '1px solid var(--cream)' : 'none'
+              }}>
+                                            <span style={{
+                  fontSize: '16px',
+                  fontWeight: 500,
+                  color: 'var(--dark-brown)'
+                }}>{item.day}</span>
+                                            <span style={{
+                  fontSize: '16px',
+                  color: 'var(--medium-brown)',
+                  fontWeight: 600
+                }}>{item.hours}</span>
+                                        </div>
+              )}
+                                </div>
+                            </div>
+                            
+                            {/* Google Reviews */}
+                            <div style={{
+            background: 'white',
+            borderRadius: '24px',
+            padding: '48px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '400px'
+          }}>
+                                <div style={{
+              fontSize: '64px',
+              marginBottom: '24px'
+            }}>⭐</div>
+                                
+                                <h3 style={{
+              fontSize: '28px',
+              fontWeight: 700,
+              color: 'var(--dark-brown)',
+              marginBottom: '16px',
+              textAlign: 'center'
+            }}>See What People Say</h3>
+                                
+                                <p style={{
+              fontSize: '16px',
+              lineHeight: 1.7,
+              color: 'var(--medium-brown)',
+              marginBottom: '32px',
+              textAlign: 'center',
+              maxWidth: '400px'
+            }}>
+                                    Read reviews from our happy guests and share your experience
+                                </p>
+                                
+                                <a
+              href="https://www.google.com/maps/place/Dacha+Cafe/@40.2557144,-74.3142647,17z/data=!4m8!3m7!1s0x89c2300c3f3f3f3f:0x3f3f3f3f3f3f3f3f!8m2!3d40.2557144!4d-74.3120707!9m1!1b1!16s%2Fg%2F11c5m7y7y7"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                background: getAccentVar(),
+                color: 'white',
+                textDecoration: 'none',
+                padding: '16px 32px',
+                fontSize: '16px',
+                fontWeight: 600,
+                borderRadius: '12px',
+                transition: 'all 0.3s',
+                boxShadow: `0 8px 24px ${getAccentVar()}40`,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = `0 12px 32px ${getAccentVar()}50`;
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)';
+                e.target.style.boxShadow = `0 8px 24px ${getAccentVar()}40`;
+              }}>
+              
+                                    <span>Read Google Reviews</span>
+                                    <span style={{ fontSize: '18px' }}>→</span>
+                                </a>
+                                
+                                <div style={{
+              marginTop: '32px',
+              display: 'flex',
+              gap: '24px',
+              justifyContent: 'center',
+              width: '100%'
+            }}>
+                                    <a
+                href="https://www.instagram.com/dacha_cafe_nj/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--medium-brown)',
+                  textDecoration: 'none',
+                  fontSize: '15px',
+                  transition: 'color 0.3s'
+                }}
+                onMouseEnter={(e) => e.target.style.color = getAccentVar()}
+                onMouseLeave={(e) => e.target.style.color = 'var(--medium-brown)'}>
+                
+                                        📷 Instagram
+                                    </a>
+                                    <a
+                href="https://www.facebook.com/MFoodCateringNJ/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--medium-brown)',
+                  textDecoration: 'none',
+                  fontSize: '15px',
+                  transition: 'color 0.3s'
+                }}
+                onMouseEnter={(e) => e.target.style.color = getAccentVar()}
+                onMouseLeave={(e) => e.target.style.color = 'var(--medium-brown)'}>
+                
+                                        👍 Facebook
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>);
+
+}
+
+// ============ CATERING SECTION ============
+function CateringSection({ accentColor, showPatterns }) {
+  const getAccentVar = () => accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
+  const getLightAccentVar = () => accentColor === 'terracotta' ? 'var(--light-terracotta)' : 'var(--light-sage)';
+
+  return (
+    <section id="catering" style={{
+      padding: '140px 60px',
+      background: getLightAccentVar(),
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+                    {showPatterns &&
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        opacity: 0.05,
+        backgroundImage: `radial-gradient(circle at 30% 40%, ${getAccentVar()} 2px, transparent 2px)`,
+        backgroundSize: '60px 60px'
+      }} />
+      }
+                    
+                    <div style={{
+        maxWidth: '1400px',
+        margin: '0 auto',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '80px',
+        alignItems: 'center',
+        position: 'relative',
+        zIndex: 1
+      }}>
+                        <div>
+                            <div style={{
+            fontSize: '14px',
+            letterSpacing: '2px',
+            textTransform: 'uppercase',
+            color: getAccentVar(),
+            fontWeight: 600,
+            marginBottom: '20px'
+          }}>
+                                Catering
+                            </div>
+                            
+                            <h2 style={{
+            fontSize: '52px',
+            fontWeight: 700,
+            lineHeight: 1.2,
+            marginBottom: '32px',
+            color: 'var(--dark-brown)',
+            letterSpacing: '-1px'
+          }}>
+                                Make Your<br />Event Special
+                            </h2>
+                            
+                            <p style={{
+            fontSize: '18px',
+            lineHeight: 1.8,
+            color: 'var(--medium-brown)',
+            marginBottom: '24px'
+          }}>
+                                We offer catering services for any event: from family celebrations to corporate functions. Custom menus and impeccable service.
+                            </p>
+                            
+                            <div style={{
+            background: 'white',
+            borderRadius: '16px',
+            padding: '32px',
+            marginBottom: '32px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.06)'
+          }}>
+                                <div style={{
+              display: 'grid',
+              gap: '20px'
+            }}>
+                                    {['Weddings & Anniversaries', 'Corporate Events', 'Family Celebrations', 'Private Parties'].map((item, idx) =>
+              <div key={idx} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                                            <div style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: getAccentVar()
+                }} />
+                                            <span style={{
+                  fontSize: '16px',
+                  color: 'var(--dark-brown)'
+                }}>{item}</span>
+                                        </div>
+              )}
+                                </div>
+                            </div>
+                            
+                            <button style={{
+            background: getAccentVar(),
+            color: 'white',
+            border: 'none',
+            padding: '18px 40px',
+            fontSize: '16px',
+            fontWeight: 600,
+            borderRadius: '12px',
+            cursor: 'pointer',
+            transition: 'all 0.3s',
+            boxShadow: `0 8px 24px ${getAccentVar()}40`
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'translateY(-2px)';
+            e.target.style.boxShadow = `0 12px 32px ${getAccentVar()}50`;
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'translateY(0)';
+            e.target.style.boxShadow = `0 8px 24px ${getAccentVar()}40`;
+          }}>
+                                Discuss Your Event
+                            </button>
+                        </div>
+                        
+<div style={{
+  borderRadius: '24px',
+  height: '500px',
+  overflow: 'hidden',
+  boxShadow: '0 20px 60px rgba(0,0,0,0.15)'
+}}>
+  <img
+    src="assets/catering.jpg"
+    alt="Catering service"
+    style={{
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+      display: 'block',
+      transition: 'transform 0.6s ease'
+    }}
+    onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+    onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+  />
+</div>
+                    </div>
+                </section>);
+
+}
+
+// ============ CONTACT SECTION ============
+function ContactSection({ accentColor }) {
+  const getAccentVar = () => accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
+
+  return (
+    <section id="contact" style={{
+      padding: '140px 60px',
+      background: 'var(--cream)'
+    }}>
+                    <div style={{
+        maxWidth: '1400px',
+        margin: '0 auto'
+      }}>
+                        <div style={{
+          textAlign: 'center',
+          marginBottom: '64px'
+        }}>
+                            <div style={{
+            fontSize: '14px',
+            letterSpacing: '2px',
+            textTransform: 'uppercase',
+            color: getAccentVar(),
+            fontWeight: 600,
+            marginBottom: '20px'
+          }}>
+                                Contact
+                            </div>
+                            
+                            <h2 style={{
+            fontSize: '52px',
+            fontWeight: 700,
+            lineHeight: 1.2,
+            marginBottom: '20px',
+            color: 'var(--dark-brown)',
+            letterSpacing: '-1px'
+          }}>
+                                We'd Love to See You
+                            </h2>
+                            
+                            <p style={{
+            fontSize: '18px',
+            lineHeight: 1.8,
+            color: 'var(--medium-brown)',
+            maxWidth: '600px',
+            margin: '0 auto'
+          }}>
+                                Visit us or get in touch to reserve a table
+                            </p>
+                        </div>
+                        
+                        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
+          gap: '40px'
+        }}>
+                            <ContactCard
+            icon="📍"
+            title="Address"
+            line1="335 US-9, Manalapan Township"
+            line2="NJ 07726"
+            accentColor={accentColor} />
+          
+                            
+                            <ContactCard
+            icon="📞"
+            title="Phone"
+            line1="(732) 483-4011"
+            line2="Call us anytime"
+            accentColor={accentColor} />
+          
+                            
+                            <ContactCard
+            icon="✉️"
+            title="Email"
+            line1="info@dachacafe.com"
+            line2="We respond within 24 hours"
+            accentColor={accentColor} />
+          
+                        </div>
+                        
+<div style={{
+  marginTop: '64px',
+  borderRadius: '24px',
+  overflow: 'hidden',
+  height: '400px',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+}}>
+  <iframe
+    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3272.3051061443325!2d-74.3057149!3d40.30837899999999!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x89c3d36c0fb64d79%3A0xd8b664ead7a7b811!2sDacha%20Cafe!5e1!3m2!1sru!2sus!4v1776710226703!5m2!1sru!2sus"
+    width="100%"
+    height="100%"
+    style={{ border: 0 }}
+    loading="lazy"
+    referrerPolicy="no-referrer-when-downgrade"
+  ></iframe>
+</div>
+                    </div>
+                </section>);
+
+}
+
+function ContactCard({ icon, title, line1, line2, accentColor }) {
+  const [hovered, setHovered] = useState(false);
+  const getAccentVar = () => accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: 'var(--warm-white)',
+        borderRadius: '20px',
+        padding: '40px',
+        textAlign: 'center',
+        transition: 'all 0.4s',
+        transform: 'translateY(0px)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+        border: '2px solid transparent'
+      }}>
+      
+                    <div style={{
+        fontSize: '48px',
+        marginBottom: '20px'
+      }}>
+                        {icon}
+                    </div>
+                    
+                    <h3 style={{
+        fontSize: '20px',
+        fontWeight: 600,
+        color: 'var(--dark-brown)',
+        marginBottom: '16px'
+      }}>
+                        {title}
+                    </h3>
+                    
+                    <p style={{
+        fontSize: '16px',
+        color: 'var(--medium-brown)',
+        lineHeight: 1.6,
+        marginBottom: '4px'
+      }}>
+                        <a href="tel:+17324834011" style={{
+          color: 'rgb(107, 93, 82)',
+          textDecoration: 'none'
+        }}>
+                            {line1}
+                        </a>
+                    </p>
+                    
+                    <p style={{
+        fontSize: '14px',
+        color: 'var(--medium-brown)',
+        opacity: 0.8
+      }}>
+                        {line2}
+                    </p>
+                </div>);
+
+}
+
+// ============ FOOTER ============
+function Footer() {
+  return (
+    <footer style={{
+      background: 'var(--dark-brown)',
+      color: 'white',
+      padding: '60px 60px 40px',
+      textAlign: 'center'
+    }}>
+                    <div style={{
+        maxWidth: '1400px',
+        margin: '0 auto'
+      }}>
+                        <img src="assets/dacha-logo-new.png" alt="Dacha" style={{
+          height: '60px',
+          marginBottom: '24px',
+          filter: 'brightness(0) invert(1)'
+        }} />
+                        
+                        <p style={{
+          fontSize: '16px',
+          color: 'rgba(255,255,255,0.7)',
+          marginBottom: '32px',
+          maxWidth: '500px',
+          margin: '0 auto 32px'
+        }}>
+                            Taste of home comfort in every dish
+                        </p>
+                        
+                        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '24px',
+          marginBottom: '32px'
+        }}>
+                            {['Instagram', 'Facebook', 'Email'].map((social) =>
+          <a key={social} href="#" style={{
+            color: 'rgba(255,255,255,0.7)',
+            textDecoration: 'none',
+            fontSize: '15px',
+            transition: 'color 0.3s'
+          }}
+          onMouseEnter={(e) => e.target.style.color = 'white'}
+          onMouseLeave={(e) => e.target.style.color = 'rgba(255,255,255,0.7)'}>
+                                    {social}
+                                </a>
+          )}
+                        </div>
+                        
+                        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.1)',
+          paddingTop: '24px',
+          fontSize: '14px',
+          color: 'rgba(255,255,255,0.5)'
+        }}>
+                            © 2026 Dacha Homestyle Cafe. All rights reserved.
+                        </div>
+                    </div>
+                </footer>);
+
+}
+
+// ============ TWEAKS PANEL ============
+function TweaksPanel({ tweaks, updateTweak, onClose }) {
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: '24px',
+      right: '24px',
+      background: 'white',
+      borderRadius: '20px',
+      padding: '24px',
+      boxShadow: '0 12px 48px rgba(0,0,0,0.2)',
+      zIndex: 10000,
+      width: '360px',
+      maxHeight: '70vh',
+      overflowY: 'auto'
+    }}>
+                    <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '24px',
+        paddingBottom: '16px',
+        borderBottom: '2px solid var(--cream)'
+      }}>
+                        <h3 style={{
+          fontSize: '20px',
+          fontWeight: 700,
+          color: 'var(--dark-brown)',
+          margin: 0
+        }}>Tweaks</h3>
+                    </div>
+                    
+                    <TweakSection title="Hero Style">
+                        <TweakButton
+          label="Full Bleed"
+          active={tweaks.heroStyle === 'fullBleed'}
+          onClick={() => updateTweak('heroStyle', 'fullBleed')} />
+        
+                        <TweakButton
+          label="Centered"
+          active={tweaks.heroStyle === 'centered'}
+          onClick={() => updateTweak('heroStyle', 'centered')} />
+        
+                        <TweakButton
+          label="Minimal"
+          active={tweaks.heroStyle === 'minimal'}
+          onClick={() => updateTweak('heroStyle', 'minimal')} />
+        
+                    </TweakSection>
+                    
+                    <TweakSection title="Accent Color">
+                        <TweakButton
+          label="Terracotta"
+          active={tweaks.accentColor === 'terracotta'}
+          onClick={() => updateTweak('accentColor', 'terracotta')}
+          color="var(--terracotta)" />
+        
+                        <TweakButton
+          label="Sage Green"
+          active={tweaks.accentColor === 'sage'}
+          onClick={() => updateTweak('accentColor', 'sage')}
+          color="var(--sage-green)" />
+        
+                    </TweakSection>
+                    
+                    <TweakSection title="Navigation Style">
+                        <TweakButton
+          label="Floating"
+          active={tweaks.navStyle === 'floating'}
+          onClick={() => updateTweak('navStyle', 'floating')} />
+        
+                        <TweakButton
+          label="Full Width"
+          active={tweaks.navStyle === 'fullWidth'}
+          onClick={() => updateTweak('navStyle', 'fullWidth')} />
+        
+                    </TweakSection>
+                    
+                    <TweakSection title="Visual Effects">
+                        <label style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          cursor: 'pointer',
+          padding: '12px',
+          borderRadius: '8px',
+          background: tweaks.showPatterns ? 'var(--cream)' : 'transparent',
+          transition: 'background 0.2s'
+        }}>
+                            <input
+            type="checkbox"
+            checked={tweaks.showPatterns}
+            onChange={(e) => updateTweak('showPatterns', e.target.checked)}
+            style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+          
+                            <span style={{
+            fontSize: '15px',
+            color: 'var(--dark-brown)'
+          }}>Show Patterns</span>
+                        </label>
+                    </TweakSection>
+                </div>);
+
+}
+
+function TweakSection({ title, children }) {
+  return (
+    <div style={{ marginBottom: '24px' }}>
+                    <div style={{
+        fontSize: '13px',
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '1px',
+        color: 'var(--medium-brown)',
+        marginBottom: '12px'
+      }}>
+                        {title}
+                    </div>
+                    <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px'
+      }}>
+                        {children}
+                    </div>
+                </div>);
+
+}
+
+function TweakButton({ label, active, onClick, color }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: active ? color || 'var(--terracotta)' : 'transparent',
+        color: active ? 'white' : 'var(--dark-brown)',
+        border: `2px solid ${active ? color || 'var(--terracotta)' : 'var(--cream)'}`,
+        padding: '12px 16px',
+        fontSize: '15px',
+        fontWeight: active ? 600 : 400,
+        borderRadius: '8px',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        textAlign: 'left'
+      }}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.target.style.background = 'var(--cream)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.target.style.background = 'transparent';
+        }
+      }}>
+      
+                    {label}
+                </button>);
+
+}
+
+// ============ ANIMATIONS ============
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            html {
+                scroll-behavior: smooth;
+            }
+        `;
+document.head.appendChild(styleSheet);
+
+// ============ RENDER ============
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<DachaLanding />);
+</script>
+</body>
+</html>

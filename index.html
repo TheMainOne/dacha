@@ -1288,7 +1288,7 @@ const cardPadding = rv('28px', '36px', '48px', vp);
                                 </p>
                                 
                                 <a
-              href="https://www.google.com/maps/place/Dacha+Cafe/@40.2557144,-74.3142647,17z/data=!4m8!3m7!1s0x89c2300c3f3f3f3f:0x3f3f3f3f3f3f3f3f!8m2!3d40.2557144!4d-74.3120707!9m1!1b1!16s%2Fg%2F11c5m7y7y7"
+              href="https://share.google/Ge4w79tkMmw61IPNG"
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -1463,30 +1463,36 @@ function CateringSection({ accentColor, showPatterns }) {
               )}
                                 </div>
                             </div>
-                            
-                            <button style={{
-            background: getAccentVar(),
-            color: 'white',
-            border: 'none',
-            padding: rv('16px 28px', '16px 32px', '18px 40px', vp),
-            fontSize: rv('15px', '16px', '16px', vp),
-            fontWeight: 600,
-            borderRadius: '12px',
-            cursor: 'pointer',
-            transition: 'all 0.3s',
-           boxShadow: `0 8px 24px ${getAccentVar()}40`,
-            width: vp.isMobile ? '100%' : 'auto'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-2px)';
-            e.target.style.boxShadow = `0 12px 32px ${getAccentVar()}50`;
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'translateY(0)';
-            e.target.style.boxShadow = `0 8px 24px ${getAccentVar()}40`;
-          }}>
-                                Discuss Your Event
-                            </button>
+
+     <a href="tel:+17324834011" style={{
+              background: getAccentVar(),
+              color: 'white',
+              border: 'none',
+              padding: rv('16px 28px', '16px 32px', '18px 40px', vp),
+              fontSize: rv('15px', '16px', '16px', vp),
+              fontWeight: 600,
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.3s',
+              boxShadow: `0 8px 24px ${getAccentVar()}40`,
+              width: vp.isMobile ? '100%' : 'auto',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              boxSizing: 'border-box'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = `0 12px 32px ${getAccentVar()}50`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = `0 8px 24px ${getAccentVar()}40`;
+            }}>
+                                📞 Call Us: (732) 483-4011
+                            </a>
                         </div>
                         
 <div style={{

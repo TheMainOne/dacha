@@ -36,10 +36,20 @@
             color: var(--dark-brown);
             line-height: 1.6;
             overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
         }
         
         #root {
             width: 100%;
+        }
+
+        
+        img, iframe {
+            max-width: 100%;
+        }
+ 
+        html {
+            scroll-behavior: smooth;
         }
     </style>
 </head>
@@ -49,6 +59,30 @@
     <script type="text/babel">
 
 const { useState, useEffect, useRef } = React;
+
+// ============ RESPONSIVE HOOK ============
+function useViewport() {
+  const [width, setWidth] = useState(
+    typeof window !== 'undefined' ? window.innerWidth : 1280
+  );
+ 
+  useEffect(() => {
+    const handleResize = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+ 
+  return {
+    width,
+    isMobile: width <= 640,
+    isTablet: width > 640 && width <= 1024,
+    isDesktop: width > 1024
+  };
+}
+ 
+// Pick a value based on viewport: rv(mobile, tablet, desktop, vp)
+const rv = (mobile, tablet, desktop, vp) =>
+  vp.isMobile ? mobile : vp.isTablet ? tablet : desktop;
 
 // ============ TWEAKS CONFIGURATION ============
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
@@ -162,6 +196,9 @@ function DachaLanding() {
 
 // ============ NAVIGATION ============
 function Navigation({ scrolled, activeSection, scrollToSection, navStyle }) {
+  const vp = useViewport();
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const navLinks = [
   { id: 'hero', label: 'Home' },
   { id: 'about', label: 'About' },
@@ -170,60 +207,157 @@ function Navigation({ scrolled, activeSection, scrollToSection, navStyle }) {
   { id: 'catering', label: 'Catering' },
   { id: 'contact', label: 'Contact' }];
 
+  // On mobile: always a full-width compact bar (ignore floating style)
+  const isMobileNav = vp.isMobile;
+  const effectiveFloating = navStyle === 'floating' && !isMobileNav;
+  const hasBackground = scrolled || navStyle === 'fullWidth' || isMobileNav || menuOpen;
+ 
+  const logoSize = rv(44, 52, 60, vp);
 
   const navStyles = {
     position: 'fixed',
-    top: navStyle === 'floating' ? scrolled ? '20px' : '30px' : 0,
-    left: navStyle === 'floating' ? '50%' : 0,
-    transform: navStyle === 'floating' ? 'translateX(-50%)' : 'none',
-    width: navStyle === 'floating' ? 'auto' : '100%',
-    background: scrolled || navStyle === 'fullWidth' ? 'rgba(255, 253, 251, 0.95)' : 'transparent',
-    backdropFilter: scrolled || navStyle === 'fullWidth' ? 'blur(10px)' : 'none',
-    padding: navStyle === 'floating' ? '16px 40px' : '20px 60px',
-    borderRadius: navStyle === 'floating' ? '50px' : 0,
-    boxShadow: scrolled || navStyle === 'fullWidth' ? '0 4px 20px rgba(0,0,0,0.08)' : 'none',
+top: effectiveFloating ? (scrolled ? '20px' : '30px') : 0,
+    left: effectiveFloating ? '50%' : 0,
+    right: effectiveFloating ? 'auto' : 0,
+    transform: effectiveFloating ? 'translateX(-50%)' : 'none',
+    width: effectiveFloating ? 'auto' : '100%',
+    maxWidth: effectiveFloating ? 'calc(100% - 40px)' : '100%',
+    background: hasBackground ? 'rgba(255, 253, 251, 0.95)' : 'transparent',
+    backdropFilter: hasBackground ? 'blur(10px)' : 'none',
+    padding: effectiveFloating
+      ? (vp.isTablet ? '14px 28px' : '16px 40px')
+      : (isMobileNav ? '12px 20px' : '20px 60px'),
+    borderRadius: effectiveFloating ? '50px' : 0,
+    boxShadow: hasBackground ? '0 4px 20px rgba(0,0,0,0.08)' : 'none',
     zIndex: 1000,
     transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: '40px'
+     gap: rv(12, 24, 40, vp)
   };
 
-  return (
-    <nav style={navStyles}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => scrollToSection('hero')}>
-                        <img src="assets/dacha-logo-new.png" alt="Dacha" style={{ transition: 'height 0.3s', width: "60px", height: "60px" }} />
-                    </div>
-                    
-                    <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
-                        {navLinks.map((link) =>
-        <a
-          key={link.id}
-          onClick={(e) => {e.preventDefault();scrollToSection(link.id);}}
-          style={{
-            color: activeSection === link.id ? 'var(--terracotta)' : 'var(--medium-brown)',
-            textDecoration: 'none',
-            fontSize: '15px',
-            fontWeight: activeSection === link.id ? 600 : 400,
-            cursor: 'pointer',
-            transition: 'all 0.3s',
-            position: 'relative',
-            padding: '8px 0'
-          }}
-          onMouseEnter={(e) => e.target.style.color = 'var(--terracotta)'}
-          onMouseLeave={(e) => e.target.style.color = activeSection === link.id ? 'var(--terracotta)' : 'var(--medium-brown)'}>
-          
-                                {link.label}
-                            </a>
-        )}
-                    </div>
-                </nav>);
+  const linkStyle = (active) => ({
+    color: active ? 'var(--terracotta)' : 'var(--medium-brown)',
+    textDecoration: 'none',
+    fontSize: vp.isTablet ? '14px' : '15px',
+    fontWeight: active ? 600 : 400,
+    cursor: 'pointer',
+    transition: 'all 0.3s',
+    position: 'relative',
+    padding: '8px 0'
+  });
+ 
 
+  return (
+ <>
+      <nav style={navStyles}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+          onClick={() => { scrollToSection('hero'); setMenuOpen(false); }}>
+          <img
+            src="assets/dacha-logo-new.png"
+            alt="Dacha"
+            style={{ transition: 'height 0.3s', width: logoSize + 'px', height: logoSize + 'px' }} />
+        </div>
+ 
+        {isMobileNav ? (
+          <button
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            onClick={() => setMenuOpen((v) => !v)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              gap: '5px',
+              width: '40px',
+              height: '40px'
+            }}>
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                style={{
+                  display: 'block',
+                  width: '24px',
+                  height: '2px',
+                  background: 'var(--dark-brown)',
+                  borderRadius: '2px',
+                  transition: 'transform 0.3s, opacity 0.3s',
+                  transform:
+                    menuOpen && i === 0 ? 'translateY(7px) rotate(45deg)' :
+                    menuOpen && i === 2 ? 'translateY(-7px) rotate(-45deg)' :
+                    'none',
+                  opacity: menuOpen && i === 1 ? 0 : 1
+                }} />
+            ))}
+          </button>
+        ) : (
+          <div style={{ display: 'flex', gap: vp.isTablet ? '20px' : '32px', alignItems: 'center' }}>
+            {navLinks.map((link) =>
+              <a
+                key={link.id}
+                onClick={(e) => { e.preventDefault(); scrollToSection(link.id); }}
+                style={linkStyle(activeSection === link.id)}
+                onMouseEnter={(e) => e.target.style.color = 'var(--terracotta)'}
+                onMouseLeave={(e) => e.target.style.color = activeSection === link.id ? 'var(--terracotta)' : 'var(--medium-brown)'}>
+                {link.label}
+              </a>
+            )}
+          </div>
+        )}
+  </nav>
+ 
+      {/* Mobile dropdown menu */}
+      {isMobileNav && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '68px',
+            left: 0,
+            right: 0,
+            background: 'rgba(255, 253, 251, 0.98)',
+            backdropFilter: 'blur(10px)',
+            boxShadow: menuOpen ? '0 8px 24px rgba(0,0,0,0.08)' : 'none',
+            zIndex: 999,
+            overflow: 'hidden',
+            maxHeight: menuOpen ? '420px' : '0',
+            transition: 'max-height 0.35s ease, box-shadow 0.3s'
+          }}>
+          <div style={{ display: 'flex', flexDirection: 'column', padding: '12px 20px 20px' }}>
+            {navLinks.map((link) => (
+              <a
+                key={link.id}
+                onClick={(e) => {
+                  e.preventDefault();
+                  scrollToSection(link.id);
+                  setMenuOpen(false);
+                }}
+                style={{
+                  color: activeSection === link.id ? 'var(--terracotta)' : 'var(--dark-brown)',
+                  textDecoration: 'none',
+                  fontSize: '17px',
+                  fontWeight: activeSection === link.id ? 600 : 500,
+                  padding: '14px 4px',
+                  borderBottom: '1px solid var(--cream)',
+                  cursor: 'pointer'
+                }}>
+                {link.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 // ============ HERO SECTION ============
 function HeroSection({ heroStyle, accentColor, showPatterns }) {
+   const vp = useViewport();
   const getAccentVar = () => {
     return accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
   };
@@ -232,17 +366,21 @@ function HeroSection({ heroStyle, accentColor, showPatterns }) {
     return accentColor === 'terracotta' ? 'var(--light-terracotta)' : 'var(--light-sage)';
   };
 
+const sectionPaddingX = rv('20px', '40px', '60px', vp);
+  const sectionPaddingTop = rv('90px', '100px', '100px', vp);
+
   if (heroStyle === 'fullBleed') {
     return (
       <section id="hero" style={{
-        minHeight: '100vh',
+         minHeight: vp.isMobile ? 'auto' : '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         background: `linear-gradient(135deg, ${getLightAccentVar()} 0%, var(--cream) 100%)`,
         position: 'relative',
         overflow: 'hidden',
-        paddingTop: '100px'
+        paddingTop: sectionPaddingTop,
+        paddingBottom: rv('60px', '80px', '0px', vp)
       }}>
                         {showPatterns &&
         <div style={{
@@ -261,31 +399,31 @@ function HeroSection({ heroStyle, accentColor, showPatterns }) {
                         <div style={{
           maxWidth: '1400px',
           width: '100%',
-          padding: '0 60px',
+          padding: `0 ${sectionPaddingX}`,
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '80px',
+          gridTemplateColumns: vp.isDesktop ? '1fr 1fr' : '1fr',
+          gap: rv('40px', '48px', '80px', vp),
           alignItems: 'center',
           position: 'relative',
           zIndex: 1
         }}>
                             <div style={{ animation: 'fadeInUp 1s ease-out' }}>
                                 <div style={{
-              fontSize: '16px',
+             fontSize: rv('13px', '15px', '16px', vp),
               letterSpacing: '3px',
               textTransform: 'uppercase',
               color: getAccentVar(),
               fontWeight: 600,
-              marginBottom: '24px'
+             marginBottom: rv('16px', '20px', '24px', vp)
             }}>
                                     Homestyle Cafe
                                 </div>
                                 
                                 <h1 style={{
-              fontSize: '72px',
+              fontSize: rv('40px', '56px', '72px', vp),
               fontWeight: 700,
               lineHeight: 1.1,
-              marginBottom: '32px',
+              marginBottom: rv('20px', '28px', '32px', vp),
               color: 'var(--dark-brown)',
               letterSpacing: '-1px'
             }}>
@@ -293,22 +431,28 @@ function HeroSection({ heroStyle, accentColor, showPatterns }) {
                                 </h1>
                                 
                                 <p style={{
-              fontSize: '20px',
-              lineHeight: 1.8,
+              fontSize: rv('16px', '18px', '20px', vp),
+              lineHeight: 1.7,
               color: 'var(--medium-brown)',
-              marginBottom: '48px',
+              marginBottom: rv('28px', '36px', '48px', vp),
               maxWidth: '500px'
             }}>
                                     Authentic homestyle cuisine with a modern interpretation of traditional recipes. Each dish is prepared with soul and love.
                                 </p>
                                 
-                                <div style={{ display: 'flex', gap: '20px' }}>
+                               
+                                <div style={{
+              display: 'flex',
+              gap: rv('12px', '16px', '20px', vp),
+              flexDirection: vp.isMobile ? 'column' : 'row',
+              alignItems: vp.isMobile ? 'stretch' : 'flex-start'
+            }}>
                                     <button style={{
                 background: getAccentVar(),
                 color: 'white',
                 border: 'none',
-                padding: '18px 40px',
-                fontSize: '16px',
+               padding: rv('16px 24px', '16px 32px', '18px 40px', vp),
+                fontSize: rv('15px', '16px', '16px', vp),
                 fontWeight: 600,
                 borderRadius: '12px',
                 cursor: 'pointer',
@@ -330,8 +474,8 @@ function HeroSection({ heroStyle, accentColor, showPatterns }) {
                 background: 'transparent',
                 color: 'var(--dark-brown)',
                 border: '2px solid var(--dark-brown)',
-                padding: '18px 40px',
-                fontSize: '16px',
+                padding: rv('16px 24px', '16px 32px', '18px 40px', vp),
+                fontSize: rv('15px', '16px', '16px', vp),
                 fontWeight: 600,
                 borderRadius: '12px',
                 cursor: 'pointer',
@@ -353,8 +497,8 @@ function HeroSection({ heroStyle, accentColor, showPatterns }) {
                             </div>
                             
                             <div style={{
-            borderRadius: '24px',
-            height: '600px',
+            borderRadius: rv('16px', '20px', '24px', vp),
+            height: rv('280px', '420px', '600px', vp),
             overflow: 'hidden',
             animation: 'fadeInUp 1s ease-out 0.2s both',
             boxShadow: '0 20px 60px rgba(0,0,0,0.15)'
@@ -378,31 +522,32 @@ function HeroSection({ heroStyle, accentColor, showPatterns }) {
   } else if (heroStyle === 'centered') {
     return (
       <section id="hero" style={{
-        minHeight: '100vh',
+        minHeight: vp.isMobile ? 'auto' : '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         background: `linear-gradient(to bottom, ${getLightAccentVar()}, var(--warm-white))`,
         position: 'relative',
-        paddingTop: '100px',
+        paddingTop: sectionPaddingTop,
+        paddingBottom: rv('60px', '80px', '100px', vp),
         textAlign: 'center'
       }}>
                         <div style={{
           maxWidth: '900px',
-          padding: '0 60px',
+           width: '100%',
           animation: 'fadeInUp 1s ease-out'
         }}>
                             <img src="assets/dacha-logo-new.png" alt="Dacha" style={{
-            height: '120px',
-            marginBottom: '40px',
+            height: rv('80px', '100px', '120px', vp),
+            marginBottom: rv('24px', '32px', '40px', vp),
             filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.1))'
           }} />
                             
                             <h1 style={{
-            fontSize: '84px',
+           fontSize: rv('44px', '60px', '84px', vp),
             fontWeight: 700,
             lineHeight: 1.1,
-            marginBottom: '32px',
+           marginBottom: rv('20px', '28px', '32px', vp),
             color: 'var(--dark-brown)',
             letterSpacing: '-2px'
           }}>
@@ -410,12 +555,12 @@ function HeroSection({ heroStyle, accentColor, showPatterns }) {
                             </h1>
                             
                             <p style={{
-            fontSize: '22px',
-            lineHeight: 1.8,
+            fontSize: rv('17px', '19px', '22px', vp),
+            lineHeight: 1.7,
             color: 'var(--medium-brown)',
-            marginBottom: '48px',
+            marginBottom: rv('32px', '40px', '48px', vp),
             maxWidth: '700px',
-            margin: '0 auto 48px'
+            margin: `0 auto ${rv('32px', '40px', '48px', vp)}`
           }}>
                                 Authentic recipes, modern presentation, warm atmosphere
                             </p>
@@ -424,8 +569,8 @@ function HeroSection({ heroStyle, accentColor, showPatterns }) {
             background: getAccentVar(),
             color: 'white',
             border: 'none',
-            padding: '20px 48px',
-            fontSize: '18px',
+            padding: rv('16px 36px', '18px 42px', '20px 48px', vp),
+            fontSize: rv('16px', '17px', '18px', vp),
             fontWeight: 600,
             borderRadius: '12px',
             cursor: 'pointer',
@@ -449,25 +594,26 @@ function HeroSection({ heroStyle, accentColor, showPatterns }) {
     // Minimal style
     return (
       <section id="hero" style={{
-        minHeight: '100vh',
+        minHeight: vp.isMobile ? 'auto' : '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         background: 'var(--warm-white)',
         position: 'relative',
-        paddingTop: '100px'
+       paddingTop: sectionPaddingTop,
+        paddingBottom: rv('60px', '80px', '0px', vp)
       }}>
                         <div style={{
           maxWidth: '1200px',
           width: '100%',
-          padding: '0 60px',
+           padding: `0 ${sectionPaddingX}`,
           animation: 'fadeInUp 1s ease-out'
         }}>
                             <h1 style={{
-            fontSize: '120px',
+            fontSize: rv('56px', '88px', '120px', vp),
             fontWeight: 300,
             lineHeight: 1.1,
-            marginBottom: '40px',
+            marginBottom: rv('24px', '32px', '40px', vp),
             color: 'var(--dark-brown)',
             letterSpacing: '-3px'
           }}>
@@ -476,16 +622,16 @@ function HeroSection({ heroStyle, accentColor, showPatterns }) {
                             
                             <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '60px',
+            gridTemplateColumns: vp.isDesktop ? '1fr 1fr' : '1fr',
+            gap: rv('32px', '40px', '60px', vp),
             alignItems: 'center'
           }}>
                                 <div>
                                     <p style={{
-                fontSize: '24px',
+                fontSize: rv('18px', '20px', '24px', vp),
                 lineHeight: 1.7,
                 color: 'var(--medium-brown)',
-                marginBottom: '32px'
+                marginBottom: rv('24px', '28px', '32px', vp)
               }}>
                                         Homestyle Cafe<br />
                                         Taste of home comfort
@@ -495,7 +641,7 @@ function HeroSection({ heroStyle, accentColor, showPatterns }) {
                 background: 'var(--dark-brown)',
                 color: 'white',
                 border: 'none',
-                padding: '16px 32px',
+                 padding: rv('14px 28px', '16px 32px', '16px 32px', vp),
                 fontSize: '16px',
                 fontWeight: 500,
                 borderRadius: '8px',
@@ -515,7 +661,7 @@ function HeroSection({ heroStyle, accentColor, showPatterns }) {
                                 <div style={{
               background: `repeating-linear-gradient(0deg, var(--cream), var(--cream) 2px, transparent 2px, transparent 4px)`,
               borderRadius: '16px',
-              height: '400px',
+              height: rv('240px', '320px', '400px', vp),
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -534,11 +680,15 @@ function HeroSection({ heroStyle, accentColor, showPatterns }) {
 
 // ============ ABOUT SECTION ============
 function AboutSection({ accentColor }) {
+  const vp = useViewport();
   const getAccentVar = () => accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
+
+  const statFontSize = rv('28px', '34px', '40px', vp);
+  const statLabelSize = rv('12px', '13px', '14px', vp);
 
   return (
     <section id="about" style={{
-      padding: '140px 60px',
+      padding: `${rv('80px', '100px', '140px', vp)} ${rv('20px', '40px', '60px', vp)}`,
       background: 'var(--cream)',
       position: 'relative'
     }}>
@@ -546,14 +696,14 @@ function AboutSection({ accentColor }) {
         maxWidth: '1400px',
         margin: '0 auto',
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '100px',
+        gridTemplateColumns: vp.isDesktop ? '1fr 1fr' : '1fr',
+        gap: rv('40px', '60px', '100px', vp),
         alignItems: 'center'
       }}>
                         <div style={{
           background: `repeating-linear-gradient(-45deg, var(--warm-white), var(--warm-white) 2px, ${getAccentVar()}10 2px, ${getAccentVar()}10 4px)`,
           borderRadius: '24px',
-          height: '500px',
+          height: rv('280px', '400px', '500px', vp),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -561,7 +711,7 @@ function AboutSection({ accentColor }) {
           color: 'var(--medium-brown)',
           fontSize: '16px',
           textAlign: 'center',
-          padding: '40px',
+          padding: rv('24px', '32px', '40px', vp),
           border: `3px solid ${getAccentVar()}20`
         }}>
                             [ Cafe interior photo<br />
@@ -571,7 +721,7 @@ function AboutSection({ accentColor }) {
                         
                         <div>
                             <div style={{
-            fontSize: '14px',
+            fontSize: rv('13px', '14px', '14px', vp),
             letterSpacing: '2px',
             textTransform: 'uppercase',
             color: getAccentVar(),
@@ -582,10 +732,10 @@ function AboutSection({ accentColor }) {
                             </div>
                             
                             <h2 style={{
-            fontSize: '52px',
+            fontSize: rv('32px', '42px', '52px', vp),
             fontWeight: 700,
             lineHeight: 1.2,
-            marginBottom: '32px',
+            marginBottom: rv('20px', '28px', '32px', vp),
             color: 'var(--dark-brown)',
             letterSpacing: '-1px'
           }}>
@@ -593,7 +743,7 @@ function AboutSection({ accentColor }) {
                             </h2>
                             
                             <p style={{
-            fontSize: '18px',
+            fontSize: rv('16px', '17px', '18px', vp),
             lineHeight: 1.8,
             color: 'var(--medium-brown)',
             marginBottom: '24px'
@@ -602,7 +752,7 @@ function AboutSection({ accentColor }) {
                             </p>
                             
                             <p style={{
-            fontSize: '18px',
+            fontSize: rv('16px', '17px', '18px', vp),
             lineHeight: 1.8,
             color: 'var(--medium-brown)',
             marginBottom: '32px'
@@ -613,18 +763,18 @@ function AboutSection({ accentColor }) {
                             <div style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr 1fr',
-            gap: '32px',
-            marginTop: '48px'
+            gap: rv('16px', '24px', '32px', vp),
+            marginTop: rv('32px', '40px', '48px', vp)
           }}>
                                 <div>
                                     <div style={{
-                fontSize: '40px',
+                fontSize: statFontSize,
                 fontWeight: 700,
                 color: getAccentVar(),
                 marginBottom: '8px'
               }}>10+</div>
                                     <div style={{
-                fontSize: '14px',
+                fontSize: statLabelSize,
                 color: 'var(--medium-brown)',
                 textTransform: 'uppercase',
                 letterSpacing: '1px'
@@ -633,13 +783,13 @@ function AboutSection({ accentColor }) {
                                 
                                 <div>
                                     <div style={{
-                fontSize: '40px',
+                fontSize: statFontSize,
                 fontWeight: 700,
                 color: getAccentVar(),
                 marginBottom: '8px'
               }}>50+</div>
                                     <div style={{
-                fontSize: '14px',
+                fontSize: statLabelSize,
                 color: 'var(--medium-brown)',
                 textTransform: 'uppercase',
                 letterSpacing: '1px'
@@ -648,13 +798,13 @@ function AboutSection({ accentColor }) {
                                 
                                 <div>
                                     <div style={{
-                fontSize: '40px',
+                fontSize: statFontSize,
                 fontWeight: 700,
                 color: getAccentVar(),
                 marginBottom: '8px'
               }}>1000+</div>
                                     <div style={{
-                fontSize: '14px',
+                fontSize: statLabelSize,
                 color: 'var(--medium-brown)',
                 textTransform: 'uppercase',
                 letterSpacing: '1px'
@@ -669,6 +819,7 @@ function AboutSection({ accentColor }) {
 
 // ============ MENU SECTION ============
 function MenuSection({ accentColor }) {
+   const vp = useViewport();
   const getAccentVar = () => accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
   const [activeMenu, setActiveMenu] = useState('main');
 
@@ -677,10 +828,11 @@ function MenuSection({ accentColor }) {
   { id: 'breakfast', label: 'Breakfast', pdf: 'assets/menu-breakfast.pdf' },
   { id: 'drinks', label: 'Drinks', pdf: 'assets/menu-drinks.pdf' }];
 
+  const pdfInnerHeight = rv('420px', '520px', '650px', vp);
 
   return (
     <section id="menu" style={{
-      padding: '140px 60px',
+      padding: `${rv('80px', '100px', '140px', vp)} ${rv('20px', '40px', '60px', vp)}`,
       background: 'var(--warm-white)',
       position: 'relative'
     }}>
@@ -701,7 +853,7 @@ function MenuSection({ accentColor }) {
                         </div>
                         
                         <h2 style={{
-          fontSize: '52px',
+          fontSize: rv('32px', '42px', '52px', vp),
           fontWeight: 700,
           lineHeight: 1.2,
           marginBottom: '20px',
@@ -712,12 +864,12 @@ function MenuSection({ accentColor }) {
                         </h2>
                         
                         <p style={{
-          fontSize: '18px',
+          fontSize: rv('16px', '17px', '18px', vp),
           lineHeight: 1.8,
           color: 'var(--medium-brown)',
-          marginBottom: '48px',
+          marginBottom: rv('32px', '40px', '48px', vp),
           maxWidth: '600px',
-          margin: '0 auto 48px'
+          margin: `0 auto ${rv('32px', '40px', '48px', vp)}`
         }}>
                             Browse our full menu selections
                         </p>
@@ -725,9 +877,10 @@ function MenuSection({ accentColor }) {
                         {/* Menu Tabs */}
                         <div style={{
           display: 'flex',
-          gap: '16px',
+           gap: rv('8px', '12px', '16px', vp),
           justifyContent: 'center',
-          marginBottom: '48px'
+          marginBottom: rv('32px', '40px', '48px', vp),
+          flexWrap: 'wrap'
         }}>
                             {menus.map((menu) =>
           <button
@@ -737,8 +890,8 @@ function MenuSection({ accentColor }) {
               background: activeMenu === menu.id ? getAccentVar() : 'white',
               color: activeMenu === menu.id ? 'white' : 'var(--dark-brown)',
               border: `2px solid ${activeMenu === menu.id ? getAccentVar() : 'var(--cream)'}`,
-              padding: '14px 32px',
-              fontSize: '16px',
+              padding: rv('12px 18px', '13px 24px', '14px 32px', vp),
+              fontSize: rv('14px', '15px', '16px', vp),
               fontWeight: 600,
               borderRadius: '12px',
               cursor: 'pointer',
@@ -764,10 +917,10 @@ function MenuSection({ accentColor }) {
                         {/* PDF Viewer */}
                         <div style={{
           background: 'white',
-          borderRadius: '24px',
-          padding: '48px',
+          borderRadius: rv('16px', '20px', '24px', vp),
+          padding: rv('16px', '28px', '48px', vp),
           boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-          minHeight: '700px',
+          minHeight: rv('480px', '580px', '700px', vp),
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -776,7 +929,7 @@ function MenuSection({ accentColor }) {
                             <div style={{
             width: '100%',
             maxWidth: '900px',
-            height: '650px',
+           height: pdfInnerHeight,
             border: `2px solid ${getAccentVar()}15`,
             borderRadius: '16px',
             overflow: 'hidden',
@@ -879,9 +1032,11 @@ function MenuSection({ accentColor }) {
 
 // ============ GALLERY SECTION ============
 function GallerySection() {
+  const vp = useViewport();
+
   return (
     <section id="gallery" style={{
-      padding: '140px 60px',
+      padding: `${rv('80px', '100px', '140px', vp)} ${rv('20px', '40px', '60px', vp)}`,
       background: 'var(--cream)'
     }}>
                     <div style={{
@@ -901,10 +1056,10 @@ function GallerySection() {
                         </div>
                         
                         <h2 style={{
-          fontSize: '52px',
+          fontSize: rv('32px', '42px', '52px', vp),
           fontWeight: 700,
           lineHeight: 1.2,
-          marginBottom: '64px',
+          marginBottom: rv('40px', '52px', '64px', vp),
           color: 'var(--dark-brown)',
           letterSpacing: '-1px'
         }}>
@@ -913,8 +1068,8 @@ function GallerySection() {
                         
                         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '24px'
+           gridTemplateColumns: rv('repeat(2, 1fr)', 'repeat(3, 1fr)', 'repeat(4, 1fr)', vp),
+          gap: rv('12px', '18px', '24px', vp)
         }}>
                             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) =>
           <GalleryItem key={i} index={i} />
@@ -926,6 +1081,7 @@ function GallerySection() {
 }
 
 function GalleryItem({ index }) {
+  const vp = useViewport();
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -935,7 +1091,7 @@ function GalleryItem({ index }) {
       style={{
         background: `repeating-linear-gradient(${45 * index}deg, var(--warm-white), var(--warm-white) 2px, var(--terracotta)08 2px, var(--terracotta)08 4px)`,
         borderRadius: '16px',
-        height: '280px',
+        height: rv('160px', '220px', '280px', vp),
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -976,6 +1132,7 @@ function GalleryItem({ index }) {
 
 // ============ TESTIMONIALS SECTION ============
 function TestimonialsSection({ accentColor }) {
+  const vp = useViewport();
   const getAccentVar = () => accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
 
   const hours = [
@@ -987,10 +1144,11 @@ function TestimonialsSection({ accentColor }) {
   { day: 'Saturday', hours: '10 AM – 9 PM' },
   { day: 'Sunday', hours: '10 AM – 9 PM' }];
 
+const cardPadding = rv('28px', '36px', '48px', vp);
 
   return (
     <section id="testimonials" style={{
-      padding: '140px 60px',
+       padding: `${rv('80px', '100px', '140px', vp)} ${rv('20px', '40px', '60px', vp)}`,
       background: 'var(--warm-white)'
     }}>
                     <div style={{
@@ -999,7 +1157,7 @@ function TestimonialsSection({ accentColor }) {
       }}>
                         <div style={{
           textAlign: 'center',
-          marginBottom: '64px'
+         marginBottom: rv('40px', '52px', '64px', vp)
         }}>
                             <div style={{
             fontSize: '14px',
@@ -1013,7 +1171,7 @@ function TestimonialsSection({ accentColor }) {
                             </div>
                             
                             <h2 style={{
-            fontSize: '52px',
+           fontSize: rv('32px', '42px', '52px', vp),
             fontWeight: 700,
             lineHeight: 1.2,
             marginBottom: '20px',
@@ -1024,7 +1182,7 @@ function TestimonialsSection({ accentColor }) {
                             </h2>
                             
                             <p style={{
-            fontSize: '18px',
+          fontSize: rv('16px', '17px', '18px', vp),
             lineHeight: 1.8,
             color: 'var(--medium-brown)',
             maxWidth: '600px',
@@ -1036,28 +1194,28 @@ function TestimonialsSection({ accentColor }) {
                         
                         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '60px',
+           gridTemplateColumns: vp.isDesktop ? '1fr 1fr' : '1fr',
+          gap: rv('24px', '36px', '60px', vp),
           alignItems: 'start'
         }}>
                             {/* Hours */}
                             <div style={{
             background: 'white',
             borderRadius: '24px',
-            padding: '48px',
+            padding: cardPadding,
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)'
           }}>
                                 <div style={{
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
-              marginBottom: '32px'
+              marginBottom: rv('20px', '28px', '32px', vp)
             }}>
                                     <div style={{
-                fontSize: '32px'
+                fontSize: rv('26px', '30px', '32px', vp)
               }}>🕐</div>
                                     <h3 style={{
-                fontSize: '28px',
+                fontSize: rv('22px', '26px', '28px', vp),
                 fontWeight: 700,
                 color: 'var(--dark-brown)',
                 margin: 0
@@ -1066,25 +1224,27 @@ function TestimonialsSection({ accentColor }) {
                                 
                                 <div style={{
               display: 'grid',
-              gap: '16px'
+               gap: rv('10px', '14px', '16px', vp)
             }}>
                                     {hours.map((item, idx) =>
               <div key={idx} style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '12px 0',
-                borderBottom: idx < hours.length - 1 ? '1px solid var(--cream)' : 'none'
+                 padding: rv('8px 0', '10px 0', '12px 0', vp),
+                borderBottom: idx < hours.length - 1 ? '1px solid var(--cream)' : 'none',
+                gap: '12px'
               }}>
                                             <span style={{
-                  fontSize: '16px',
+                 fontSize: rv('15px', '16px', '16px', vp),
                   fontWeight: 500,
                   color: 'var(--dark-brown)'
                 }}>{item.day}</span>
                                             <span style={{
-                  fontSize: '16px',
+                  fontSize: rv('14px', '15px', '16px', vp),
                   color: 'var(--medium-brown)',
-                  fontWeight: 600
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap'
                 }}>{item.hours}</span>
                                         </div>
               )}
@@ -1095,21 +1255,21 @@ function TestimonialsSection({ accentColor }) {
                             <div style={{
             background: 'white',
             borderRadius: '24px',
-            padding: '48px',
+             padding: cardPadding,
             boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            minHeight: '400px'
+            minHeight: rv('320px', '360px', '400px', vp)
           }}>
                                 <div style={{
-              fontSize: '64px',
-              marginBottom: '24px'
+              fontSize: rv('48px', '56px', '64px', vp),
+              marginBottom: rv('16px', '20px', '24px', vp)
             }}>⭐</div>
                                 
                                 <h3 style={{
-              fontSize: '28px',
+               fontSize: rv('22px', '26px', '28px', vp),
               fontWeight: 700,
               color: 'var(--dark-brown)',
               marginBottom: '16px',
@@ -1205,12 +1365,13 @@ function TestimonialsSection({ accentColor }) {
 
 // ============ CATERING SECTION ============
 function CateringSection({ accentColor, showPatterns }) {
+  const vp = useViewport();
   const getAccentVar = () => accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
   const getLightAccentVar = () => accentColor === 'terracotta' ? 'var(--light-terracotta)' : 'var(--light-sage)';
 
   return (
     <section id="catering" style={{
-      padding: '140px 60px',
+     padding: `${rv('80px', '100px', '140px', vp)} ${rv('20px', '40px', '60px', vp)}`,
       background: getLightAccentVar(),
       position: 'relative',
       overflow: 'hidden'
@@ -1232,8 +1393,8 @@ function CateringSection({ accentColor, showPatterns }) {
         maxWidth: '1400px',
         margin: '0 auto',
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '80px',
+        gridTemplateColumns: vp.isDesktop ? '1fr 1fr' : '1fr',
+        gap: rv('40px', '56px', '80px', vp),
         alignItems: 'center',
         position: 'relative',
         zIndex: 1
@@ -1251,10 +1412,10 @@ function CateringSection({ accentColor, showPatterns }) {
                             </div>
                             
                             <h2 style={{
-            fontSize: '52px',
+             fontSize: rv('32px', '42px', '52px', vp),
             fontWeight: 700,
             lineHeight: 1.2,
-            marginBottom: '32px',
+            marginBottom: rv('20px', '28px', '32px', vp),
             color: 'var(--dark-brown)',
             letterSpacing: '-1px'
           }}>
@@ -1262,7 +1423,7 @@ function CateringSection({ accentColor, showPatterns }) {
                             </h2>
                             
                             <p style={{
-            fontSize: '18px',
+            fontSize: rv('16px', '17px', '18px', vp),
             lineHeight: 1.8,
             color: 'var(--medium-brown)',
             marginBottom: '24px'
@@ -1273,13 +1434,13 @@ function CateringSection({ accentColor, showPatterns }) {
                             <div style={{
             background: 'white',
             borderRadius: '16px',
-            padding: '32px',
-            marginBottom: '32px',
+            padding: rv('20px', '28px', '32px', vp),
+            marginBottom: rv('24px', '28px', '32px', vp),
             boxShadow: '0 4px 16px rgba(0,0,0,0.06)'
           }}>
                                 <div style={{
               display: 'grid',
-              gap: '20px'
+               gap: rv('14px', '18px', '20px', vp)
             }}>
                                     {['Weddings & Anniversaries', 'Corporate Events', 'Family Celebrations', 'Private Parties'].map((item, idx) =>
               <div key={idx} style={{
@@ -1291,10 +1452,11 @@ function CateringSection({ accentColor, showPatterns }) {
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  background: getAccentVar()
+                 background: getAccentVar(),
+                  flexShrink: 0
                 }} />
                                             <span style={{
-                  fontSize: '16px',
+                 fontSize: rv('15px', '16px', '16px', vp),
                   color: 'var(--dark-brown)'
                 }}>{item}</span>
                                         </div>
@@ -1306,13 +1468,14 @@ function CateringSection({ accentColor, showPatterns }) {
             background: getAccentVar(),
             color: 'white',
             border: 'none',
-            padding: '18px 40px',
-            fontSize: '16px',
+            padding: rv('16px 28px', '16px 32px', '18px 40px', vp),
+            fontSize: rv('15px', '16px', '16px', vp),
             fontWeight: 600,
             borderRadius: '12px',
             cursor: 'pointer',
             transition: 'all 0.3s',
-            boxShadow: `0 8px 24px ${getAccentVar()}40`
+           boxShadow: `0 8px 24px ${getAccentVar()}40`,
+            width: vp.isMobile ? '100%' : 'auto'
           }}
           onMouseEnter={(e) => {
             e.target.style.transform = 'translateY(-2px)';
@@ -1327,8 +1490,8 @@ function CateringSection({ accentColor, showPatterns }) {
                         </div>
                         
 <div style={{
-  borderRadius: '24px',
-  height: '500px',
+ borderRadius: rv('16px', '20px', '24px', vp),
+  height: rv('240px', '380px', '500px', vp),
   overflow: 'hidden',
   boxShadow: '0 20px 60px rgba(0,0,0,0.15)'
 }}>
@@ -1353,11 +1516,12 @@ function CateringSection({ accentColor, showPatterns }) {
 
 // ============ CONTACT SECTION ============
 function ContactSection({ accentColor }) {
+   const vp = useViewport();
   const getAccentVar = () => accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
 
   return (
     <section id="contact" style={{
-      padding: '140px 60px',
+       padding: `${rv('80px', '100px', '140px', vp)} ${rv('20px', '40px', '60px', vp)}`,
       background: 'var(--cream)'
     }}>
                     <div style={{
@@ -1366,7 +1530,7 @@ function ContactSection({ accentColor }) {
       }}>
                         <div style={{
           textAlign: 'center',
-          marginBottom: '64px'
+          marginBottom: rv('40px', '52px', '64px', vp)
         }}>
                             <div style={{
             fontSize: '14px',
@@ -1380,7 +1544,7 @@ function ContactSection({ accentColor }) {
                             </div>
                             
                             <h2 style={{
-            fontSize: '52px',
+            fontSize: rv('32px', '42px', '52px', vp),
             fontWeight: 700,
             lineHeight: 1.2,
             marginBottom: '20px',
@@ -1391,7 +1555,7 @@ function ContactSection({ accentColor }) {
                             </h2>
                             
                             <p style={{
-            fontSize: '18px',
+            fontSize: rv('16px', '17px', '18px', vp),
             lineHeight: 1.8,
             color: 'var(--medium-brown)',
             maxWidth: '600px',
@@ -1403,8 +1567,8 @@ function ContactSection({ accentColor }) {
                         
                         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr 1fr',
-          gap: '40px'
+          gridTemplateColumns: rv('1fr', 'repeat(3, 1fr)', 'repeat(3, 1fr)', vp),
+          gap: rv('16px', '24px', '40px', vp)
         }}>
                             <ContactCard
             icon="📍"
@@ -1432,10 +1596,10 @@ function ContactSection({ accentColor }) {
                         </div>
                         
 <div style={{
-  marginTop: '64px',
-  borderRadius: '24px',
+  marginTop: rv('40px', '52px', '64px', vp),
+  borderRadius: rv('16px', '20px', '24px', vp),
   overflow: 'hidden',
-  height: '400px',
+   height: rv('280px', '340px', '400px', vp),
   boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
 }}>
   <iframe
@@ -1453,6 +1617,7 @@ function ContactSection({ accentColor }) {
 }
 
 function ContactCard({ icon, title, line1, line2, accentColor }) {
+  const vp = useViewport();
   const [hovered, setHovered] = useState(false);
   const getAccentVar = () => accentColor === 'terracotta' ? 'var(--terracotta)' : 'var(--sage-green)';
 
@@ -1463,7 +1628,7 @@ function ContactCard({ icon, title, line1, line2, accentColor }) {
       style={{
         background: 'var(--warm-white)',
         borderRadius: '20px',
-        padding: '40px',
+        padding: rv('28px 24px', '32px 28px', '40px', vp),
         textAlign: 'center',
         transition: 'all 0.4s',
         transform: 'translateY(0px)',
@@ -1472,17 +1637,17 @@ function ContactCard({ icon, title, line1, line2, accentColor }) {
       }}>
       
                     <div style={{
-        fontSize: '48px',
-        marginBottom: '20px'
+       fontSize: rv('40px', '44px', '48px', vp),
+        marginBottom: rv('14px', '18px', '20px', vp)
       }}>
                         {icon}
                     </div>
                     
                     <h3 style={{
-        fontSize: '20px',
+         fontSize: rv('18px', '19px', '20px', vp),
         fontWeight: 600,
         color: 'var(--dark-brown)',
-        marginBottom: '16px'
+        marginBottom: rv('12px', '14px', '16px', vp)
       }}>
                         {title}
                     </h3>
@@ -1514,11 +1679,12 @@ function ContactCard({ icon, title, line1, line2, accentColor }) {
 
 // ============ FOOTER ============
 function Footer() {
+  const vp = useViewport();
   return (
     <footer style={{
       background: 'var(--dark-brown)',
       color: 'white',
-      padding: '60px 60px 40px',
+     padding: rv('40px 20px 28px', '48px 40px 32px', '60px 60px 40px', vp),
       textAlign: 'center'
     }}>
                     <div style={{
@@ -1528,7 +1694,6 @@ function Footer() {
                         <img src="assets/dacha-logo-new.png" alt="Dacha" style={{
           height: '60px',
           marginBottom: '24px',
-          filter: 'brightness(0) invert(1)'
         }} />
                         
                         <p style={{
@@ -1561,13 +1726,13 @@ function Footer() {
           )}
                         </div>
                         
-                        <div style={{
+<div style={{
           borderTop: '1px solid rgba(255,255,255,0.1)',
           paddingTop: '24px',
           fontSize: '14px',
           color: 'rgba(255,255,255,0.5)'
         }}>
-                            © 2026 Dacha Homestyle Cafe. All rights reserved.
+                            © {new Date().getFullYear()} Dacha Homestyle Cafe. All rights reserved.
                         </div>
                     </div>
                 </footer>);
@@ -1576,18 +1741,20 @@ function Footer() {
 
 // ============ TWEAKS PANEL ============
 function TweaksPanel({ tweaks, updateTweak, onClose }) {
+  const vp = useViewport();
   return (
     <div style={{
       position: 'fixed',
-      bottom: '24px',
-      right: '24px',
+       bottom: vp.isMobile ? '12px' : '24px',
+      right: vp.isMobile ? '12px' : '24px',
+      left: vp.isMobile ? '12px' : 'auto',
       background: 'white',
       borderRadius: '20px',
-      padding: '24px',
+      padding: rv('16px', '20px', '24px', vp),
       boxShadow: '0 12px 48px rgba(0,0,0,0.2)',
       zIndex: 10000,
-      width: '360px',
-      maxHeight: '70vh',
+     width: vp.isMobile ? 'auto' : '360px',
+      maxHeight: vp.isMobile ? '60vh' : '70vh',
       overflowY: 'auto'
     }}>
                     <div style={{
